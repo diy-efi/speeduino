@@ -353,6 +353,34 @@ void boostDisable()
   BOOST_PIN_LOW(); //Make sure solenoid is off (0% duty)
 }
 
+void initialiseIndicatorLights()
+{
+    shift_light_pin_port = portOutputRegister(digitalPinToPort(pinShiftLight));
+    shift_light_pin_mask = digitalPinToBitMask(pinShiftLight);
+    
+    SHIFT_LIGHT_PIN_LOW(); //Initiallise program with the shift light in the off state
+    currentStatus.shiftLightActive = false;
+}
+
+void indicatorLightControl()
+{
+    if (configPage10.shiftLightEnabled == true)
+    {
+        //Config page values are divided by 100 to fit within a byte. Multiply them back out to real values. 
+        uint16_t realShiftLightRPM = (uint16_t)configPage10.shiftLightRPM * 100;
+        if (currentStatus.RPM >= realShiftLightRPM)
+        {
+            SHIFT_LIGHT_PIN_HIGH();
+            currentStatus.shiftLightActive = true;
+        }
+        else
+        {
+            SHIFT_LIGHT_PIN_LOW();
+            currentStatus.shiftLightActive = false;
+        }             
+    }
+}
+
 //The interrupt to control the Boost PWM
 #if defined(CORE_AVR)
   ISR(TIMER1_COMPA_vect)

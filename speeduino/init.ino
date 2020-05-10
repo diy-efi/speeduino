@@ -234,6 +234,7 @@ void initialiseAll()
     initialiseIdle();
     initialiseFan();
     initialiseAuxPWM();
+    initialiseIndicatorLights();
     initialiseCorrections();
     initialiseADC();
 
@@ -2330,6 +2331,9 @@ void setPinMapping(byte boardID)
   //Currently there's no default pin for closed throttle position sensor
   pinCTPS = pinTranslate(configPage2.CTPSPin);
 
+  //Currently there's no default pin for closed throttle position sensor
+  pinShiftLight = pinTranslate(configPage10.shiftLightPin);
+
   /* Reset control is a special case. If reset control is enabled, it needs its initial state set BEFORE its pinMode.
      If that doesn't happen and reset control is in "Serial Command" mode, the Arduino will end up in a reset loop
      because the control pin will go low as soon as the pinMode is set to OUTPUT. */
@@ -2353,6 +2357,7 @@ void setPinMapping(byte boardID)
   pinMode(pinStepperEnable, OUTPUT);
   pinMode(pinBoost, OUTPUT);
   pinMode(pinVVT_1, OUTPUT);
+  pinMode(pinShiftLight, OUTPUT);
 
   //This is a legacy mode option to revert the MAP reading behaviour to match what was in place prior to the 201905 firmware
   if(configPage2.legacyMAP > 0) { digitalWrite(pinMAP, HIGH); }

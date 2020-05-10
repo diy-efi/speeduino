@@ -280,6 +280,7 @@ void loop()
       readBat();
       nitrousControl();
       idleControl(); //Perform any idle related actions. Even at higher frequencies, running 4x per second is sufficient.
+      indicatorLightControl();
 
       if(eepromWritesPending == true) { writeAllConfig(); } //Check for any outstanding EEPROM writes.
 

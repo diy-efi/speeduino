@@ -523,6 +523,7 @@ struct statuses {
   uint16_t injAngle;
   byte ASEValue;
   uint16_t vss; /**< Current speed reading. Natively stored in kph and converted to mph in TS if required */
+  bool shiftLightActive; /**< Indicator showing the current status of the shift light */
 };
 
 /**
@@ -1045,7 +1046,11 @@ struct config10 {
   uint16_t vvtCLMinAng;
   uint16_t vvtCLMaxAng;
 
-  byte unused11_123_191[58];
+  byte shiftLightEnabled : 1;
+  byte shiftLightPin : 6;
+  byte shiftLightRPM;
+
+  byte unused11_123_191[56];
 
 #if defined(CORE_AVR)
   };
@@ -1116,6 +1121,7 @@ extern byte pinIgnBypass; //The pin used for an ignition bypass (Optional)
 extern byte pinFlex; //Pin with the flex sensor attached
 extern byte pinVSS; 
 extern byte pinBaro; //Pin that an external barometric pressure sensor is attached to (If used)
+extern byte pinShiftLight; //Pin that drives an external shift light
 extern byte pinResetControl; // Output pin used control resetting the Arduino
 #ifdef USE_MC33810
   //If the MC33810 IC\s are in use, these are the chip select pins
