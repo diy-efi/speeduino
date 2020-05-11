@@ -31,6 +31,8 @@ void indicatorLightControl();
 #define READ_N2O_ARM_PIN()    ((*n2o_arming_pin_port & n2o_arming_pin_mask) ? true : false)
 #define SHIFT_LIGHT_PIN_LOW()  *shift_light_pin_port &= ~(shift_light_pin_mask)
 #define SHIFT_LIGHT_PIN_HIGH() *shift_light_pin_port |= (shift_light_pin_mask)
+#define WARNING_LIGHT_PIN_LOW()  *warning_light_pin_port &= ~(warning_light_pin_mask)
+#define WARNING_LIGHT_PIN_HIGH() *warning_light_pin_port |= (warning_light_pin_mask)
 
 volatile PORT_TYPE *boost_pin_port;
 volatile PINMASK_TYPE boost_pin_mask;
@@ -46,6 +48,8 @@ volatile PORT_TYPE *n2o_arming_pin_port;
 volatile PINMASK_TYPE n2o_arming_pin_mask;
 volatile PORT_TYPE *shift_light_pin_port;
 volatile PINMASK_TYPE shift_light_pin_mask;
+volatile PORT_TYPE *warning_light_pin_port;
+volatile PINMASK_TYPE warning_light_pin_mask;
 
 volatile bool boost_pwm_state;
 unsigned int boost_pwm_max_count; //Used for variable PWM frequency

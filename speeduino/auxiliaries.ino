@@ -357,13 +357,21 @@ void initialiseIndicatorLights()
 {
     shift_light_pin_port = portOutputRegister(digitalPinToPort(pinShiftLight));
     shift_light_pin_mask = digitalPinToBitMask(pinShiftLight);
+
+    warning_light_pin_port = portOutputRegister(digitalPinToPort(pinWarningLight));
+    warning_light_pin_mask = digitalPinToBitMask(pinWarningLight);
     
-    SHIFT_LIGHT_PIN_LOW(); //Initiallise program with the shift light in the off state
+    //Initiallise program with the indicator lights in the off state
+    SHIFT_LIGHT_PIN_LOW(); 
+    WARNING_LIGHT_PIN_LOW();
+
     currentStatus.shiftLightActive = false;
+    currentStatus.warningLightActive = false;
 }
 
 void indicatorLightControl()
 {
+    // Shift Light Control
     if (configPage10.shiftLightEnabled == true)
     {
         //Config page values are divided by 100 to fit within a byte. Multiply them back out to real values. 
@@ -378,6 +386,44 @@ void indicatorLightControl()
             SHIFT_LIGHT_PIN_LOW();
             currentStatus.shiftLightActive = false;
         }             
+    }
+    
+    // Warning Light Control
+    if (configPage10.warningLightEnabled == true)
+    {
+        // Flag which is set if any of the warning conditions are met
+        byte warningLightShouldActivate = false;
+
+        // CLT Warning
+        if (configPage10.warningLightBasedOnCltEnabled == true)
+        {
+            if ((currentStatus.coolant > (configPage10.warningLightCltActivationPoint - CALIBRATION_TEMPERATURE_OFFSET)))
+            {
+                warningLightShouldActivate = true;
+            }
+        }
+
+        // AFR Warning
+        if (configPage10.warningLightBasedOnAfrEnabled == true)
+        {
+            if ((currentStatus.O2 > configPage10.warningLightHighAfrActivationPoint) ||
+                (currentStatus.O2 < configPage10.warningLightLowAfrActivationPoint))
+            {
+                warningLightShouldActivate = true;
+            }
+        }
+
+        // If the flag signalling a warning condition has been met activate the light 
+        if (warningLightShouldActivate == true)
+        {
+            WARNING_LIGHT_PIN_HIGH();
+            currentStatus.warningLightActive = true;
+        }
+        else
+        {
+            WARNING_LIGHT_PIN_LOW();
+            currentStatus.warningLightActive = false;
+        }
     }
 }
 

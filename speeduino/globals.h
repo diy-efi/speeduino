@@ -524,6 +524,7 @@ struct statuses {
   byte ASEValue;
   uint16_t vss; /**< Current speed reading. Natively stored in kph and converted to mph in TS if required */
   bool shiftLightActive; /**< Indicator showing the current status of the shift light */
+  bool warningLightActive; /**< Indicator showing the current status of the warning light */
 };
 
 /**
@@ -1046,11 +1047,29 @@ struct config10 {
   uint16_t vvtCLMinAng;
   uint16_t vvtCLMaxAng;
 
+  //Byte 134
   byte shiftLightEnabled : 1;
   byte shiftLightPin : 6;
+  byte warningLightBasedOnAfrEnabled : 1;
+
+  //Byte 135
   byte shiftLightRPM;
 
-  byte unused11_123_191[56];
+  //Byte 136
+  byte warningLightEnabled;
+  byte warningLightPin : 6;
+  byte warningLightBasedOnCltEnabled : 1;
+
+  //Byte 137
+  byte warningLightCltActivationPoint;
+
+  //Byte 138
+  byte warningLightLowAfrActivationPoint;
+
+  //Byte 139
+  byte warningLightHighAfrActivationPoint;
+
+  byte unused11_123_191[51];
 
 #if defined(CORE_AVR)
   };
@@ -1122,6 +1141,7 @@ extern byte pinFlex; //Pin with the flex sensor attached
 extern byte pinVSS; 
 extern byte pinBaro; //Pin that an external barometric pressure sensor is attached to (If used)
 extern byte pinShiftLight; //Pin that drives an external shift light
+extern byte pinWarningLight; //Pin that drives an external warning light
 extern byte pinResetControl; // Output pin used control resetting the Arduino
 #ifdef USE_MC33810
   //If the MC33810 IC\s are in use, these are the chip select pins

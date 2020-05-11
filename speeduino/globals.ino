@@ -204,6 +204,7 @@ byte pinFlex; //Pin with the flex sensor attached
 byte pinVSS;
 byte pinBaro; //Pin that an al barometric pressure sensor is attached to (If used)
 byte pinShiftLight; //Pin that drives an external shift light
+byte pinWarningLight; //Pin that drives an external warning light
 byte pinResetControl; // Output pin used control resetting the Arduino
 #ifdef USE_MC33810
   //If the MC33810 IC\s are in use, these are the chip select pins
