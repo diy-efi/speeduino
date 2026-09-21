@@ -20,6 +20,11 @@
 
 #define FILTER_FLEX_DEFAULT     75U
 
+#define FLEX_MIN_PULSE_WIDTH    800UL   /**< Minimum valid pulse width in uS (spec min is 1000uS @ -40C) */
+#define FLEX_MAX_PULSE_WIDTH    6000UL  /**< Maximum valid pulse width in uS (spec max is 5000uS @ 125C) */
+#define FLEX_MIN_PERIOD         5000UL  /**< Minimum valid period in uS (~200Hz max, spec max is 150Hz/170Hz error) */
+#define FLEX_MIN_HIGH_TIME      500UL   /**< Minimum high time in uS before accepting a new falling edge */
+
 #define VSS_GEAR_HYSTERESIS 10U
 #define VSS_SAMPLES         4U //Must be a power of 2 and smaller than 255
 

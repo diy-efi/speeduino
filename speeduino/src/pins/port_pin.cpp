@@ -18,10 +18,10 @@ void port_pin_t::setPinHigh(void) noexcept
 {
     if (isValid())
     {
-        ATOMIC() { *_port |= _mask; }
 #if defined(UNIT_TEST)
         _pinState = HIGH;
 #endif
+        ATOMIC() { *_port |= _mask; }
     }
 }
 
@@ -30,10 +30,10 @@ void port_pin_t::setPinLow(void) noexcept
 {
     if (isValid())
     {
-        ATOMIC() { *_port &= ~_mask; }
 #if defined(UNIT_TEST)
         _pinState = LOW;
 #endif
+        ATOMIC() { *_port &= ~_mask; }
     }
 }
 

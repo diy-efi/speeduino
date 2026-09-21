@@ -35,7 +35,9 @@ static volatile uint32_t vssTimes[VSS_SAMPLES] = {0};
 static volatile uint8_t vssIndex = 0U;
 
 volatile uint8_t flexCounter = 0U;
-static volatile uint32_t flexStartTime = 0UL;
+TESTABLE_STATIC volatile uint32_t flexStartTime = 0UL;
+TESTABLE_STATIC volatile uint32_t flexLastValidRising = 0UL;
+TESTABLE_STATIC volatile uint32_t flexLastRising = 0UL;
 volatile uint32_t flexPulseWidth = 0U;
 
 static map_algorithm_t mapAlgorithmState;
@@ -950,7 +952,7 @@ uint8_t getAnalogKnock(void)
   return (uint8_t)fastMap10Bit(readAnalogSensor(pinKnock), 0U, 255U);
 }
 
-static boardInputPin_t flex_pin;
+TESTABLE_STATIC boardInputPin_t flex_pin;
 
 /*
  * The interrupt function for reading the flex sensor frequency and pulse width
@@ -958,21 +960,37 @@ static boardInputPin_t flex_pin;
  */
 void flexPulse(void)
 {
+  uint32_t now = micros();
   if(flex_pin.isPinHigh())
   {
-    uint16_t tempPW = clamp(timeElapsed(micros(), flexStartTime), (uint32_t)0U, (uint32_t)UINT16_MAX); //Calculate the pulse width
-    flexPulseWidth = LOW_PASS_FILTER(tempPW, configPage4.FILTER_FLEX, flexPulseWidth);
-    ++flexCounter;
+    flexLastRising = now;
+    uint32_t pulseDuration = timeElapsed(now, flexStartTime);
+    uint32_t period = timeElapsed(now, flexLastValidRising);
+
+    if ((pulseDuration >= FLEX_MIN_PULSE_WIDTH) && (pulseDuration <= FLEX_MAX_PULSE_WIDTH) && (period >= FLEX_MIN_PERIOD))
+    {
+      flexLastValidRising = now;
+      uint16_t tempPW = (uint16_t)pulseDuration;
+      flexPulseWidth = LOW_PASS_FILTER(tempPW, configPage4.FILTER_FLEX, flexPulseWidth);
+      ++flexCounter;
+    }
   }
   else
   {
-    flexStartTime = micros(); //Start pulse width measurement.
+    if (timeElapsed(now, flexLastRising) >= FLEX_MIN_HIGH_TIME)
+    {
+      flexStartTime = now;
+    }
   }
 }
 
 void __attribute__((optimize("Os"))) initialiseFlexSensor(config2 &page2, statuses &current, uint8_t pin)
 {
   current.ethanolPct = 0;
+  uint32_t now = micros();
+  flexStartTime = now;
+  flexLastValidRising = now - FLEX_MIN_PERIOD;
+  flexLastRising = now - FLEX_MIN_HIGH_TIME;
 
   page2.flexEnabled  = page2.flexEnabled && !pinIsOutput(pinNumbers.pinFlex);
   if(page2.flexEnabled)
