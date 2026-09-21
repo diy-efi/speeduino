@@ -33,6 +33,7 @@ volatile byte loop66ms;
 volatile byte loop100ms;
 volatile byte loop250ms;
 volatile int loopSec;
+volatile uint8_t flexErrorSeconds = 0U;
 
 void __attribute__((optimize("Os"))) initialiseTimers(void)
 {
@@ -44,6 +45,7 @@ void __attribute__((optimize("Os"))) initialiseTimers(void)
   loop100ms = 0;
   loop250ms = 0;
   loopSec = 0;
+  flexErrorSeconds = 0U;
 }
 
 TESTABLE_STATIC volatile uint8_t TIMER_mask;
@@ -171,36 +173,56 @@ void oneMSInterval(void)
     //Set the flex reading (if enabled). The flexCounter is updated with every pulse from the sensor. If cleared once per second, we get a frequency reading
     if(configPage2.flexEnabled == true)
     {
-      byte tempEthPct = 0; 
+      byte tempEthPct = 0;
+      bool isFlexError = false;
+
       if(flexCounter < configPage2.flexFreqLow)
       {
-        tempEthPct = 0U; //Standard GM Continental sensor reads from 50Hz (0 ethanol) to 150Hz (Pure ethanol). Subtracting 50 from the frequency therefore gives the ethanol percentage.
-        flexCounter = 0U;
+        isFlexError = true;
       }
       else if (flexCounter > (configPage2.flexFreqHigh + 1) ) //1 pulse buffer
       {
-
         if(flexCounter < (configPage2.flexFreqHigh + 20)) //20Hz above the max freq is considered an error condition. Everything below that should be treated as max value
         {
           tempEthPct = 100U;
-          flexCounter = 0U;
         }
         else
         {
           //This indicates an error condition. Spec of the sensor is that errors are above 170Hz)
-          tempEthPct = 0U;
-          flexCounter = 0U;
+          isFlexError = true;
         }
       }
       else
       {
         tempEthPct = flexCounter - configPage2.flexFreqLow; //Standard GM Continental sensor reads from 50Hz (0 ethanol) to 150Hz (Pure ethanol). Subtracting 50 from the frequency therefore gives the ethanol percentage.
-        flexCounter = 0;
       }
+      flexCounter = 0U;
 
-      //Off by 1 error check
-      if (tempEthPct == 1U) { tempEthPct = 0U; }
-      if (tempEthPct > 100U) { tempEthPct = 100U; }
+      if(isFlexError)
+      {
+        if(flexErrorSeconds <= FLEX_ERROR_TIMEOUT_SECS)
+        {
+          ++flexErrorSeconds;
+        }
+
+        if(flexErrorSeconds <= FLEX_ERROR_TIMEOUT_SECS)
+        {
+          // Hold the current ethanol percentage during transient error bursts (e.g. electrical crosstalk)
+          tempEthPct = currentStatus.ethanolPct;
+        }
+        else
+        {
+          // Error persisted longer than the hold timeout: fallback to 0%
+          tempEthPct = 0U;
+        }
+      }
+      else
+      {
+        flexErrorSeconds = 0U;
+        //Off by 1 error check
+        if (tempEthPct == 1U) { tempEthPct = 0U; }
+        if (tempEthPct > 100U) { tempEthPct = 100U; }
+      }
 
       currentStatus.ethanolPct = (uint8_t)LOW_PASS_FILTER((uint16_t)tempEthPct, configPage4.FILTER_FLEX, (uint16_t)currentStatus.ethanolPct);
 

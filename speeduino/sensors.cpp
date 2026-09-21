@@ -987,6 +987,7 @@ void flexPulse(void)
 void __attribute__((optimize("Os"))) initialiseFlexSensor(config2 &page2, statuses &current, uint8_t pin)
 {
   current.ethanolPct = 0;
+  flexErrorSeconds = 0U;
   uint32_t now = micros();
   flexStartTime = now;
   flexLastValidRising = now - FLEX_MIN_PERIOD;

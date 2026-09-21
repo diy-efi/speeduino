@@ -24,12 +24,14 @@
 #define FLEX_MAX_PULSE_WIDTH    6000UL  /**< Maximum valid pulse width in uS (spec max is 5000uS @ 125C) */
 #define FLEX_MIN_PERIOD         5000UL  /**< Minimum valid period in uS (~200Hz max, spec max is 150Hz/170Hz error) */
 #define FLEX_MIN_HIGH_TIME      500UL   /**< Minimum high time in uS before accepting a new falling edge */
+#define FLEX_ERROR_TIMEOUT_SECS 5U      /**< Consecutive error seconds before falling back to 0% ethanol */
 
 #define VSS_GEAR_HYSTERESIS 10U
 #define VSS_SAMPLES         4U //Must be a power of 2 and smaller than 255
 
 extern volatile uint8_t flexCounter;
 extern volatile uint32_t flexPulseWidth;
+extern volatile uint8_t flexErrorSeconds;
 
 #define BIT_SENSORS_AUX_ENBL        0
 #define BIT_SENSORS_BARO_SAVED      1
