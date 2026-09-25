@@ -25,6 +25,8 @@
 #define FLEX_MIN_PERIOD         5000UL  /**< Minimum valid period in uS (~200Hz max, spec max is 150Hz/170Hz error) */
 #define FLEX_MIN_HIGH_TIME      500UL   /**< Minimum high time in uS before accepting a new falling edge */
 #define FLEX_ERROR_TIMEOUT_SECS 5U      /**< Consecutive error seconds before falling back to 0% ethanol */
+#define FLEX_PRIME_WINDOW_SECS  15U     /**< Duration in seconds of the startup/priming window */
+#define FLEX_MAX_SLEW_PER_SEC   2U      /**< Maximum rate of change (% ethanol per second) during normal driving */
 
 #define VSS_GEAR_HYSTERESIS 10U
 #define VSS_SAMPLES         4U //Must be a power of 2 and smaller than 255
@@ -32,6 +34,7 @@
 extern volatile uint8_t flexCounter;
 extern volatile uint32_t flexPulseWidth;
 extern volatile uint8_t flexErrorSeconds;
+extern volatile bool flexHasValidReading;
 
 #define BIT_SENSORS_AUX_ENBL        0
 #define BIT_SENSORS_BARO_SAVED      1

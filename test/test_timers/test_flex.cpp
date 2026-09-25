@@ -295,6 +295,194 @@ static void test_flex_hold_full_timeout_then_reconnection(void)
   TEST_ASSERT_EQUAL_UINT8(0U, flexErrorSeconds);
 }
 
+static void test_flex_startup_snap_bypasses_slew_rate(void)
+{
+  setup_oneMsInterval();
+  configPage2.flexEnabled = true;
+  configPage2.flexFreqLow = 50U;
+  configPage2.flexFreqHigh = 150U;
+  configPage4.FILTER_FLEX = 0U;
+  currentStatus.ethanolPct = 0U;
+  TEST_ASSERT_FALSE(flexHasValidReading);
+
+  // First valid reading: 85% ethanol (135Hz)
+  flexCounter = 135U;
+  run_n_intervals(1000);
+
+  // Must snap directly to 85% without ramp delay from 0%
+  TEST_ASSERT_EQUAL_UINT8(85U, currentStatus.ethanolPct);
+  TEST_ASSERT_TRUE(flexHasValidReading);
+}
+
+static void test_flex_priming_window_fast_tracking(void)
+{
+  setup_oneMsInterval();
+  configPage2.flexEnabled = true;
+  configPage2.flexFreqLow = 50U;
+  configPage2.flexFreqHigh = 150U;
+  configPage4.FILTER_FLEX = 0U;
+
+  // First reading establishes line fuel at 10% ethanol (60Hz)
+  flexCounter = 60U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(10U, currentStatus.ethanolPct);
+  TEST_ASSERT_TRUE(flexHasValidReading);
+
+  // Engine is cranking/running within 15s prime window (e.g. runSecs = 8)
+  currentStatus.rotationStatus = EngineRotationStatus::Running;
+  currentStatus.runSecs = 8U;
+
+  // Fresh tank fuel arrives at sensor: 85% ethanol (135Hz)
+  flexCounter = 135U;
+  run_n_intervals(1000);
+
+  // Within prime window (runSecs <= 15), must track directly to 85% (not clamped to 12%)
+  TEST_ASSERT_EQUAL_UINT8(85U, currentStatus.ethanolPct);
+}
+
+static void test_flex_driving_slew_rate_limits_increase(void)
+{
+  setup_oneMsInterval();
+  configPage2.flexEnabled = true;
+  configPage2.flexFreqLow = 50U;
+  configPage2.flexFreqHigh = 150U;
+  configPage4.FILTER_FLEX = 0U;
+
+  // Establish initial 50% ethanol reading
+  flexCounter = 100U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(50U, currentStatus.ethanolPct);
+
+  // Vehicle is driving down the road: running under load, past 15s prime window
+  currentStatus.rotationStatus = EngineRotationStatus::Running;
+  currentStatus.runSecs = 20U;
+
+  // Sensor reading suddenly jumps to 80% (130Hz) due to crosstalk / noise
+  // Slew rate must limit increase to exactly 2% per second
+  flexCounter = 130U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(52U, currentStatus.ethanolPct);
+
+  flexCounter = 130U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(54U, currentStatus.ethanolPct);
+
+  flexCounter = 130U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(56U, currentStatus.ethanolPct);
+}
+
+static void test_flex_driving_slew_rate_limits_decrease(void)
+{
+  setup_oneMsInterval();
+  configPage2.flexEnabled = true;
+  configPage2.flexFreqLow = 50U;
+  configPage2.flexFreqHigh = 150U;
+  configPage4.FILTER_FLEX = 0U;
+
+  // Establish initial 50% ethanol reading
+  flexCounter = 100U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(50U, currentStatus.ethanolPct);
+
+  // Vehicle is driving down the road: running under load, past 15s prime window
+  currentStatus.rotationStatus = EngineRotationStatus::Running;
+  currentStatus.runSecs = 20U;
+
+  // Sensor reading suddenly drops to 20% (70Hz)
+  // Slew rate must limit decrease to exactly 2% per second
+  flexCounter = 70U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(48U, currentStatus.ethanolPct);
+
+  flexCounter = 70U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(46U, currentStatus.ethanolPct);
+
+  flexCounter = 70U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(44U, currentStatus.ethanolPct);
+}
+
+static void test_flex_driving_slew_rate_allows_small_changes(void)
+{
+  setup_oneMsInterval();
+  configPage2.flexEnabled = true;
+  configPage2.flexFreqLow = 50U;
+  configPage2.flexFreqHigh = 150U;
+  configPage4.FILTER_FLEX = 0U;
+
+  // Initial 50% reading
+  flexCounter = 100U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(50U, currentStatus.ethanolPct);
+
+  // Driving
+  currentStatus.rotationStatus = EngineRotationStatus::Running;
+  currentStatus.runSecs = 25U;
+
+  // Small 1% change (50% -> 51% = 101Hz)
+  flexCounter = 101U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(51U, currentStatus.ethanolPct);
+}
+
+static void test_flex_driving_slew_rate_boundary_clamping(void)
+{
+  setup_oneMsInterval();
+  configPage2.flexEnabled = true;
+  configPage2.flexFreqLow = 50U;
+  configPage2.flexFreqHigh = 150U;
+  configPage4.FILTER_FLEX = 0U;
+
+  // Near 0 boundary: 2% ethanol = 52Hz
+  flexCounter = 52U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(2U, currentStatus.ethanolPct);
+
+  currentStatus.rotationStatus = EngineRotationStatus::Running;
+  currentStatus.runSecs = 30U;
+
+  // Attempt to drop to 0%: 2% - 2% = 0% without underflow
+  flexCounter = 50U; // 0%
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(0U, currentStatus.ethanolPct);
+
+  // Near 100 boundary: 99% ethanol (149Hz)
+  currentStatus.ethanolPct = 99U;
+  flexCounter = 150U; // 100%
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(100U, currentStatus.ethanolPct);
+}
+
+static void test_flex_reconnection_after_timeout_snaps_directly(void)
+{
+  setup_oneMsInterval();
+  configPage2.flexEnabled = true;
+  configPage2.flexFreqLow = 50U;
+  configPage2.flexFreqHigh = 150U;
+  configPage4.FILTER_FLEX = 0U;
+
+  // Establish initial 60% reading
+  flexCounter = 110U;
+  run_n_intervals(1000);
+  TEST_ASSERT_EQUAL_UINT8(60U, currentStatus.ethanolPct);
+  TEST_ASSERT_TRUE(flexHasValidReading);
+
+  // Sensor disconnected: runs 6 seconds (timeout expires -> drops to 0%)
+  flexCounter = 0U;
+  run_n_intervals(6000);
+  TEST_ASSERT_EQUAL_UINT8(0U, currentStatus.ethanolPct);
+  TEST_ASSERT_FALSE(flexHasValidReading);
+
+  // Sensor reconnected with 85% ethanol (135Hz)
+  flexCounter = 135U;
+  run_n_intervals(1000);
+  // Reconnection must snap immediately to 85% (not ramp from 0% at 2%/s)
+  TEST_ASSERT_EQUAL_UINT8(85U, currentStatus.ethanolPct);
+  TEST_ASSERT_TRUE(flexHasValidReading);
+}
+
 void testFlex(void)
 {
   SET_UNITY_FILENAME()
@@ -313,5 +501,12 @@ void testFlex(void)
     RUN_TEST(test_flex_hold_maintains_value_under_smoothing_filter);
     RUN_TEST(test_flex_hold_initial_startup_no_sensor);
     RUN_TEST(test_flex_hold_full_timeout_then_reconnection);
+    RUN_TEST(test_flex_startup_snap_bypasses_slew_rate);
+    RUN_TEST(test_flex_priming_window_fast_tracking);
+    RUN_TEST(test_flex_driving_slew_rate_limits_increase);
+    RUN_TEST(test_flex_driving_slew_rate_limits_decrease);
+    RUN_TEST(test_flex_driving_slew_rate_allows_small_changes);
+    RUN_TEST(test_flex_driving_slew_rate_boundary_clamping);
+    RUN_TEST(test_flex_reconnection_after_timeout_snaps_directly);
   }
 }

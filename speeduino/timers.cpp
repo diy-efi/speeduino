@@ -34,6 +34,7 @@ volatile byte loop100ms;
 volatile byte loop250ms;
 volatile int loopSec;
 volatile uint8_t flexErrorSeconds = 0U;
+volatile bool flexHasValidReading = false;
 
 void __attribute__((optimize("Os"))) initialiseTimers(void)
 {
@@ -46,6 +47,7 @@ void __attribute__((optimize("Os"))) initialiseTimers(void)
   loop250ms = 0;
   loopSec = 0;
   flexErrorSeconds = 0U;
+  flexHasValidReading = false;
 }
 
 TESTABLE_STATIC volatile uint8_t TIMER_mask;
@@ -214,6 +216,7 @@ void oneMSInterval(void)
         {
           // Error persisted longer than the hold timeout: fallback to 0%
           tempEthPct = 0U;
+          flexHasValidReading = false;
         }
       }
       else
@@ -222,6 +225,24 @@ void oneMSInterval(void)
         //Off by 1 error check
         if (tempEthPct == 1U) { tempEthPct = 0U; }
         if (tempEthPct > 100U) { tempEthPct = 100U; }
+
+        if(!flexHasValidReading)
+        {
+          // First valid reading at boot or after reconnection: snap directly without ramp delay
+          currentStatus.ethanolPct = tempEthPct;
+          flexHasValidReading = true;
+        }
+        else if((currentStatus.runSecs > FLEX_PRIME_WINDOW_SECS) && (currentStatus.rotationStatus == EngineRotationStatus::Running))
+        {
+          // Normal driving: enforce rate-of-change (slew) limit of 2% per second
+          uint8_t minEthPct = (currentStatus.ethanolPct >= FLEX_MAX_SLEW_PER_SEC) ? (currentStatus.ethanolPct - FLEX_MAX_SLEW_PER_SEC) : 0U;
+          uint8_t maxEthPct = (currentStatus.ethanolPct <= (100U - FLEX_MAX_SLEW_PER_SEC)) ? (currentStatus.ethanolPct + FLEX_MAX_SLEW_PER_SEC) : 100U;
+          tempEthPct = clamp((uint8_t)tempEthPct, minEthPct, maxEthPct);
+        }
+        else
+        {
+          // Startup / priming window (runSecs <= 15 or engine stopped/cranking): allow fast tracking
+        }
       }
 
       currentStatus.ethanolPct = (uint8_t)LOW_PASS_FILTER((uint16_t)tempEthPct, configPage4.FILTER_FLEX, (uint16_t)currentStatus.ethanolPct);

@@ -988,6 +988,7 @@ void __attribute__((optimize("Os"))) initialiseFlexSensor(config2 &page2, status
 {
   current.ethanolPct = 0;
   flexErrorSeconds = 0U;
+  flexHasValidReading = false;
   uint32_t now = micros();
   flexStartTime = now;
   flexLastValidRising = now - FLEX_MIN_PERIOD;
